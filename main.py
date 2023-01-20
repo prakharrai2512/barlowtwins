@@ -6,6 +6,7 @@ import numpy as np
 import pytorch_lightning as pl
 import lightly
 from loss import BarlowTwinsLoss
+import wideresnet 
 
 from utils import knn_predict, BenchmarkModule
 
@@ -83,7 +84,8 @@ class BartonTwins(BenchmarkModule):
     def __init__(self, dataloader_kNN, gpus, classes, knn_k, knn_t):
         super().__init__(dataloader_kNN, gpus, classes, knn_k, knn_t)
         # create a ResNet backbone and remove the classification head
-        resnet = lightly.models.ResNetGenerator('resnet-18')
+        #resnet = lightly.models.ResNetGenerator('resnet-18')
+        resnet = wideresnet.WideResNet(28,10,2,0)
         self.backbone = nn.Sequential(
             *list(resnet.children())[:-1],
             nn.AdaptiveAvgPool2d(1),
@@ -91,7 +93,7 @@ class BartonTwins(BenchmarkModule):
         # create a simsiam model based on ResNet
         # note that bartontwins has the same architecture
         self.resnet_simsiam = \
-            lightly.models.SimSiam(self.backbone, num_ftrs=512, num_mlp_layers=3)
+            lightly.models.SimSiam(self.backbone, num_ftrs=128, num_mlp_layers=3)
         self.criterion = BarlowTwinsLoss(device=device)
             
     def forward(self, x):
@@ -137,10 +139,11 @@ class BartonTwins(BenchmarkModule):
 model = BartonTwins(dataloader_train_kNN, gpus=gpus, classes=classes, knn_k=knn_k, knn_t=knn_t)
 
 trainer = pl.Trainer(max_epochs=max_epochs, gpus=gpus,
-                    progress_bar_refresh_rate=100)
+                    #progress_bar_refresh_rate=100
+                    )
 trainer.fit(
     model,
-    train_dataloader=dataloader_train_ssl,
+    train_dataloaders=dataloader_train_ssl,
     val_dataloaders=dataloader_test
 )
 
